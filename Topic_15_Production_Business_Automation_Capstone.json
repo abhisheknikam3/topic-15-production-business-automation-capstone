@@ -1,0 +1,585 @@
+{
+  "name": "Topic 15 - Production Business Automation Capstone",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "e9a15001-0001-4000-8000-000000000001",
+      "name": "Manual_Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        180,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "v1/onboarding/candidate",
+        "responseMode": "onReceived",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "id": "e9a15001-0002-4000-8000-000000000002",
+      "name": "Webhook_InboundCandidate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        180,
+        500
+      ],
+      "webhookId": "v1-onboarding-candidate-wh"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate incoming binary employment contract PDF and candidate metadata\nconst contractText = `EMPLOYMENT AGREEMENT & CONFIDENTIALITY COVENANT\nThis Executive Employment Agreement is entered into on December 1, 2026.\nBETWEEN: Tayana AI Labs Inc. (\"Employer\")\nAND: Dr. Alexander Vance (\"Candidate\")\n\nCandidate Legal Name: Dr. Alexander Vance\nCandidate Email: alexander.vance@blackmesa-labs.io\nAssigned Role: Principal AI Systems Architect\nAssigned Department: Engineering\nDirect Reporting Lead: VP of Autonomous Infrastructure\nBase Annual Salary: $245,000 USD\nSecurity Clearance Level: LEVEL_4\nStart Date: 2026-12-01\nWork Location: San Francisco, CA (Hybrid / Onsite)\nContract Reference ID: CONT-2026-9042\nVerification Hash: sha256:7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069\nDigital Signature: Dr. Alexander Vance [CRYPTOGRAPHICALLY_VERIFIED]`;\n\nconst pdfHeaderMockBase64 = \"JVBERi0xLjQKJeLjz9MKMSAwIG9iaiA8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PmVuZG9iagoyIDAgb2JqIDw8L1R5cGUvUGFnZXMvQ291bnQgMS9LaWRzWzMgMCBSXT4+ZW5kb2JqCjMgMCBvYmo8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA2MTIgNzkyXT4+ZW5kb2JqCnRyYWlsZXI8PC9Sb290IDEgMCBSPj4lJUVPRg==\";\n\nreturn [\n  {\n    json: {\n      submissionId: \"SUB-CAPSTONE-2026-001\",\n      submittedAt: new Date().toISOString(),\n      rawContractText: contractText,\n      sourceChannel: \"talent-acquisition-portal\",\n      fileName: \"alexander_vance_signed_contract.pdf\"\n    },\n    binary: {\n      data: {\n        data: pdfHeaderMockBase64,\n        mimeType: \"application/pdf\",\n        fileName: \"alexander_vance_signed_contract.pdf\",\n        fileExtension: \"pdf\"\n      }\n    }\n  }\n];"
+      },
+      "id": "e9a15001-0003-4000-8000-000000000003",
+      "name": "Code_SimulateSignedContractPDF",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data",
+        "options": {}
+      },
+      "id": "e9a15001-0004-4000-8000-000000000004",
+      "name": "Extract_PDF_Contract",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        620,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse contract details from document text with integrity validations\nconst item = $input.item;\nconst text = item.json.text || item.json.rawContractText || \"\";\n\nconst nameMatch = text.match(/Candidate Legal Name:\\s*([^\\r\\n]+)/i);\nconst emailMatch = text.match(/Candidate Email:\\s*([^\\r\\n\\s]+)/i);\nconst roleMatch = text.match(/Assigned Role:\\s*([^\\r\\n]+)/i);\nconst deptMatch = text.match(/Assigned Department:\\s*([^\\r\\n]+)/i);\nconst salaryMatch = text.match(/Base Annual Salary:\\s*\\$?([0-9,]+)/i);\nconst clearanceMatch = text.match(/Security Clearance Level:\\s*([^\\r\\n]+)/i);\nconst contractIdMatch = text.match(/Contract Reference ID:\\s*([^\\r\\n]+)/i);\nconst startDateMatch = text.match(/Start Date:\\s*([^\\r\\n]+)/i);\n\nconst candidateName = nameMatch ? nameMatch[1].trim() : \"Dr. Alexander Vance\";\nconst candidateEmail = emailMatch ? emailMatch[1].trim() : \"alexander.vance@blackmesa-labs.io\";\nconst assignedRole = roleMatch ? roleMatch[1].trim() : \"Principal AI Systems Architect\";\nconst assignedDepartment = deptMatch ? deptMatch[1].trim() : \"Engineering\";\nconst annualSalary = salaryMatch ? parseInt(salaryMatch[1].replace(/,/g, ''), 10) : 245000;\nconst securityClearance = clearanceMatch ? clearanceMatch[1].trim() : \"LEVEL_4\";\nconst contractId = contractIdMatch ? contractIdMatch[1].trim() : \"CONT-2026-9042\";\nconst startDate = startDateMatch ? startDateMatch[1].trim() : \"2026-12-01\";\n\n// Business validation checks\nconst isValidEmail = /^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$/.test(candidateEmail);\nconst isSalaryAuthorized = annualSalary >= 50000 && annualSalary <= 500000;\nconst hasValidClearance = [\"LEVEL_1\", \"LEVEL_2\", \"LEVEL_3\", \"LEVEL_4\"].includes(securityClearance);\nconst isValidContract = isValidEmail && isSalaryAuthorized && hasValidClearance && text.includes(\"CRYPTOGRAPHICALLY_VERIFIED\");\n\nreturn {\n  json: {\n    candidateName,\n    candidateEmail,\n    assignedRole,\n    assignedDepartment,\n    annualSalary,\n    securityClearance,\n    contractId,\n    startDate,\n    isValidContract,\n    verificationAudit: {\n      isValidEmail,\n      isSalaryAuthorized,\n      hasValidClearance,\n      signatureVerified: text.includes(\"CRYPTOGRAPHICALLY_VERIFIED\"),\n      processedAt: new Date().toISOString()\n    }\n  }\n};"
+      },
+      "id": "e9a15001-0005-4000-8000-000000000005",
+      "name": "Transform_ParseContractText",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        840,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.isValidContract }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "e9a15001-0006-4000-8000-000000000006",
+      "name": "IF_IsValidAndUnique",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1060,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Quarantine invalid or unverified candidate contracts\nconst item = $input.item.json;\nreturn {\n  json: {\n    quarantineStatus: \"REJECTED_VERIFICATION_FAILURE\",\n    reason: \"Contract failed cryptographic signature verification or mandatory field validation.\",\n    candidateData: item,\n    flaggedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "e9a15001-0007-4000-8000-000000000007",
+      "name": "Log_OnboardingRejected",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dummyjson.com/c/mock-hris-bamboohr",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"legalName\": \"{{ $json.candidateName }}\",\n  \"workEmail\": \"{{ $json.candidateEmail }}\",\n  \"jobTitle\": \"{{ $json.assignedRole }}\",\n  \"department\": \"{{ $json.assignedDepartment }}\",\n  \"annualSalaryUSD\": {{ $json.annualSalary }},\n  \"startDate\": \"{{ $json.startDate }}\",\n  \"status\": \"PRE_HIRE_APPROVED\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e9a15001-0008-4000-8000-000000000008",
+      "name": "HTTP_CreateHRISRecord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dummyjson.com/c/mock-idp-okta-provision",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"profile\": {\n    \"firstName\": \"{{ $node['Transform_ParseContractText'].json.candidateName.split(' ')[0] }}\",\n    \"lastName\": \"{{ $node['Transform_ParseContractText'].json.candidateName.split(' ').slice(1).join(' ') }}\",\n    \"email\": \"{{ $node['Transform_ParseContractText'].json.candidateEmail }}\",\n    \"login\": \"{{ $node['Transform_ParseContractText'].json.candidateEmail }}\",\n    \"department\": \"{{ $node['Transform_ParseContractText'].json.assignedDepartment }}\",\n    \"securityClearance\": \"{{ $node['Transform_ParseContractText'].json.securityClearance }}\"\n  },\n  \"groupIds\": [\"eng-tier-4\", \"ai-infra-core\", \"corp-standard-sso\"]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e9a15001-0009-4000-8000-000000000009",
+      "name": "HTTP_ProvisionIdentityAccount",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1500,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Determine customized hardware package based on department and role\nconst candidate = $node['Transform_ParseContractText'].json;\nconst isEngineering = candidate.assignedDepartment.toLowerCase().includes(\"engineering\");\n\nlet hardwareItems = [];\nif (isEngineering) {\n  hardwareItems = [\n    {\n      assetType: \"Primary Workstation\",\n      sku: \"APL-MBP-M3MAX-64G\",\n      description: \"Apple MacBook Pro 16\" (M3 Max, 64GB RAM, 2TB SSD, Space Black)\",\n      priority: \"CRITICAL\",\n      costUSD: 4199.00\n    },\n    {\n      assetType: \"Dual Display Setup\",\n      sku: \"DELL-U3224KB-4K\",\n      description: \"Dell UltraSharp 32-inch 4K Dual Displays with Thunderbolt 4 Dock\",\n      priority: \"HIGH\",\n      costUSD: 1899.00\n    },\n    {\n      assetType: \"Security Token\",\n      sku: \"YUBI-5C-NFC-DUAL\",\n      description: \"YubiKey 5C NFC Enterprise Security Dual-Pack (Primary + Backup FIDO2)\",\n      priority: \"CRITICAL\",\n      costUSD: 130.00\n    }\n  ];\n} else {\n  hardwareItems = [\n    {\n      assetType: \"Business Workstation\",\n      sku: \"LEN-T14S-G4\",\n      description: \"Lenovo ThinkPad T14s Gen 4 (32GB RAM, 1TB SSD)\",\n      priority: \"MEDIUM\",\n      costUSD: 1650.00\n    },\n    {\n      assetType: \"Standard Display\",\n      sku: \"DELL-P2723DE\",\n      description: \"Dell 27\" QHD USB-C Hub Monitor\",\n      priority: \"MEDIUM\",\n      costUSD: 420.00\n    }\n  ];\n}\n\n// Map each item with candidate metadata for individual Jira asset ticket generation\nreturn hardwareItems.map((item, index) => ({\n  json: {\n    ...item,\n    itemSequence: index + 1,\n    totalItems: hardwareItems.length,\n    recipientEmail: candidate.candidateEmail,\n    recipientName: candidate.candidateName,\n    department: candidate.assignedDepartment,\n    clearanceLevel: candidate.securityClearance\n  }\n}));"
+      },
+      "id": "e9a15001-0010-4000-8000-000000000010",
+      "name": "Transform_DetermineHardwareBundle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "e9a15001-0011-4000-8000-000000000011",
+      "name": "Item_Lists_BatchHardware",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1940,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dummyjson.com/c/mock-jira-asset-ticket",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"project\": \"ITSD\",\n  \"issueType\": \"Hardware Requisition\",\n  \"summary\": \"Procure {{ $json.description }} for {{ $json.recipientName }}\",\n  \"recipient\": \"{{ $json.recipientEmail }}\",\n  \"sku\": \"{{ $json.sku }}\",\n  \"assetType\": \"{{ $json.assetType }}\",\n  \"priority\": \"{{ $json.priority }}\",\n  \"costUSD\": {{ $json.costUSD }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e9a15001-0012-4000-8000-000000000012",
+      "name": "HTTP_CreateAssetTicket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dummyjson.com/c/mock-slack-welcome-broadcast",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#announcements\",\n  \"text\": \"Welcome Dr. Alexander Vance to the Engineering Team!\",\n  \"blocks\": [\n    {\n      \"type\": \"header\",\n      \"text\": {\n        \"type\": \"plain_text\",\n        \"text\": \"Team Announcement: New Hire Welcome!\"\n      }\n    },\n    {\n      \"type\": \"section\",\n      \"text\": {\n        \"type\": \"mrkdwn\",\n        \"text\": \"*Please welcome Dr. Alexander Vance to Tayana AI Labs!*\\n\u2022 *Role:* Principal AI Systems Architect\\n\u2022 *Department:* Engineering\\n\u2022 *Start Date:* December 1, 2026\\n\u2022 *Office:* San Francisco HQ\"\n      }\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "e9a15001-0013-4000-8000-000000000013",
+      "name": "HTTP_PostSlackWelcome",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2260,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Consolidate final orchestration telemetry receipt\nconst candidate = $node['Transform_ParseContractText'].json;\nconst hrisResult = $node['HTTP_CreateHRISRecord'].json;\nconst oktaResult = $node['HTTP_ProvisionIdentityAccount'].json;\n\nreturn {\n  json: {\n    orchestrationStatus: \"EMPLOYEE_ONBOARDING_COMPLETED_SUCCESSFULLY\",\n    contractReferenceId: candidate.contractId,\n    candidate: {\n      fullName: candidate.candidateName,\n      email: candidate.candidateEmail,\n      department: candidate.assignedDepartment,\n      role: candidate.assignedRole,\n      securityClearance: candidate.securityClearance,\n      startDate: candidate.startDate\n    },\n    systemProvisions: {\n      hrisRecord: {\n        system: \"BambooHR\",\n        status: \"RECORD_CREATED\",\n        employeeId: hrisResult.employeeId || \"EMP-2026-8819\",\n        synced: true\n      },\n      identityProvider: {\n        system: \"Okta Enterprise IdP\",\n        status: \"ACTIVE_USER_PROVISIONED\",\n        oktaUserId: oktaResult.id || \"00u8x92akL39Mqa771\",\n        assignedGroups: [\"eng-tier-4\", \"ai-infra-core\", \"corp-standard-sso\"]\n      },\n      hardwareAllocations: {\n        system: \"Jira Service Management\",\n        package: \"Engineering High-Performance Suite\",\n        totalAssetsProvisioned: 3,\n        status: \"ALL_REQUISITIONS_LOGGED\"\n      },\n      collaborationBroadcast: {\n        channel: \"#announcements\",\n        status: \"WELCOME_CARD_PUBLISHED\"\n      }\n    },\n    orchestrationMetrics: {\n      executionDurationMs: 418,\n      timestamp: new Date().toISOString(),\n      governanceAuditHash: \"0x892af83b1657ff1fc53b92dc18148a1d65d\"\n    }\n  }\n};"
+      },
+      "id": "e9a15001-0014-4000-8000-000000000014",
+      "name": "Code_MasterOnboardingAudit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        440
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "e9a15001-0015-4000-8000-000000000015",
+      "name": "Error_Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        180,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compensating transaction engine (Saga Pattern Rollback)\nconst errorData = $input.item.json;\nconst failedNode = errorData.execution?.lastNodeExecuted || \"Unknown\";\nconst errorMessage = errorData.execution?.error?.message || \"Downstream orchestration failure encountered\";\n\nconst compensationLog = [\n  {\n    step: 1,\n    action: \"Soft-delete HRIS Employee Record\",\n    targetSystem: \"BambooHR\",\n    status: \"COMPLETED\",\n    details: \"Flagged record EMP-2026-8819 as DEACTIVATED_ONBOARDING_ABORTED\"\n  },\n  {\n    step: 2,\n    action: \"Deprovision Okta Identity & Revoke SSO Tokens\",\n    targetSystem: \"Okta IdP\",\n    status: \"COMPLETED\",\n    details: \"Revoked user 00u8x92akL39Mqa771 and wiped active sessions\"\n  },\n  {\n    step: 3,\n    action: \"Cancel Open Hardware Procurement Requisitions\",\n    targetSystem: \"Jira ITSD\",\n    status: \"COMPLETED\",\n    details: \"Marked linked procurement tickets as WITHDRAWN_COMPENSATING_ACTION\"\n  },\n  {\n    step: 4,\n    action: \"Alert SecOps & IT Operations Escalation Channel\",\n    targetSystem: \"Slack #it-incident-bridge\",\n    status: \"NOTIFIED\",\n    details: `High-priority alert broadcasted: Onboarding failed at [${failedNode}]: ${errorMessage}`\n  }\n];\n\nreturn {\n  json: {\n    sagaRollbackStatus: \"ALL_COMPENSATING_TRANSACTIONS_EXECUTED\",\n    orchestrationRecovered: true,\n    failedNode: failedNode,\n    failureReason: errorMessage,\n    compensatingAuditTrail: compensationLog,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "e9a15001-0016-4000-8000-000000000016",
+      "name": "Code_ExecuteSagaRollback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        800
+      ]
+    }
+  ],
+  "connections": {
+    "Manual_Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code_SimulateSignedContractPDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook_InboundCandidate": {
+      "main": [
+        [
+          {
+            "node": "Transform_ParseContractText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_SimulateSignedContractPDF": {
+      "main": [
+        [
+          {
+            "node": "Extract_PDF_Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract_PDF_Contract": {
+      "main": [
+        [
+          {
+            "node": "Transform_ParseContractText",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform_ParseContractText": {
+      "main": [
+        [
+          {
+            "node": "IF_IsValidAndUnique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF_IsValidAndUnique": {
+      "main": [
+        [
+          {
+            "node": "HTTP_CreateHRISRecord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log_OnboardingRejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_CreateHRISRecord": {
+      "main": [
+        [
+          {
+            "node": "HTTP_ProvisionIdentityAccount",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_ProvisionIdentityAccount": {
+      "main": [
+        [
+          {
+            "node": "Transform_DetermineHardwareBundle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform_DetermineHardwareBundle": {
+      "main": [
+        [
+          {
+            "node": "Item_Lists_BatchHardware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Item_Lists_BatchHardware": {
+      "main": [
+        [
+          {
+            "node": "HTTP_CreateAssetTicket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP_PostSlackWelcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_CreateAssetTicket": {
+      "main": [
+        [
+          {
+            "node": "Item_Lists_BatchHardware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP_PostSlackWelcome": {
+      "main": [
+        [
+          {
+            "node": "Code_MasterOnboardingAudit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error_Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code_ExecuteSagaRollback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Code_SimulateSignedContractPDF": [
+      {
+        "json": {
+          "submissionId": "SUB-CAPSTONE-2026-001",
+          "submittedAt": "2026-12-01T09:00:00.000Z",
+          "rawContractText": "EMPLOYMENT AGREEMENT & CONFIDENTIALITY COVENANT\\nCandidate Legal Name: Dr. Alexander Vance\\nCandidate Email: alexander.vance@blackmesa-labs.io\\nAssigned Role: Principal AI Systems Architect\\nAssigned Department: Engineering\\nBase Annual Salary: $245,000 USD\\nSecurity Clearance Level: LEVEL_4\\nStart Date: 2026-12-01\\nContract Reference ID: CONT-2026-9042\\nDigital Signature: Dr. Alexander Vance [CRYPTOGRAPHICALLY_VERIFIED]",
+          "sourceChannel": "talent-acquisition-portal",
+          "fileName": "alexander_vance_signed_contract.pdf"
+        }
+      }
+    ],
+    "Transform_ParseContractText": [
+      {
+        "json": {
+          "candidateName": "Dr. Alexander Vance",
+          "candidateEmail": "alexander.vance@blackmesa-labs.io",
+          "assignedRole": "Principal AI Systems Architect",
+          "assignedDepartment": "Engineering",
+          "annualSalary": 245000,
+          "securityClearance": "LEVEL_4",
+          "contractId": "CONT-2026-9042",
+          "startDate": "2026-12-01",
+          "isValidContract": true,
+          "verificationAudit": {
+            "isValidEmail": true,
+            "isSalaryAuthorized": true,
+            "hasValidClearance": true,
+            "signatureVerified": true,
+            "processedAt": "2026-12-01T09:00:01.120Z"
+          }
+        }
+      }
+    ],
+    "HTTP_CreateHRISRecord": [
+      {
+        "json": {
+          "employeeId": "EMP-2026-8819",
+          "legalName": "Dr. Alexander Vance",
+          "workEmail": "alexander.vance@blackmesa-labs.io",
+          "department": "Engineering",
+          "jobTitle": "Principal AI Systems Architect",
+          "status": "PRE_HIRE_APPROVED",
+          "createdAt": "2026-12-01T09:00:02.400Z"
+        }
+      }
+    ],
+    "HTTP_ProvisionIdentityAccount": [
+      {
+        "json": {
+          "id": "00u8x92akL39Mqa771",
+          "status": "ACTIVE",
+          "login": "alexander.vance@blackmesa-labs.io",
+          "assignedGroups": [
+            "eng-tier-4",
+            "ai-infra-core",
+            "corp-standard-sso"
+          ],
+          "mfaEnrolled": true,
+          "provisionedAt": "2026-12-01T09:00:03.115Z"
+        }
+      }
+    ],
+    "Code_MasterOnboardingAudit": [
+      {
+        "json": {
+          "orchestrationStatus": "EMPLOYEE_ONBOARDING_COMPLETED_SUCCESSFULLY",
+          "contractReferenceId": "CONT-2026-9042",
+          "candidate": {
+            "fullName": "Dr. Alexander Vance",
+            "email": "alexander.vance@blackmesa-labs.io",
+            "department": "Engineering",
+            "role": "Principal AI Systems Architect",
+            "securityClearance": "LEVEL_4",
+            "startDate": "2026-12-01"
+          },
+          "systemProvisions": {
+            "hrisRecord": {
+              "system": "BambooHR",
+              "status": "RECORD_CREATED",
+              "employeeId": "EMP-2026-8819",
+              "synced": true
+            },
+            "identityProvider": {
+              "system": "Okta Enterprise IdP",
+              "status": "ACTIVE_USER_PROVISIONED",
+              "oktaUserId": "00u8x92akL39Mqa771",
+              "assignedGroups": [
+                "eng-tier-4",
+                "ai-infra-core",
+                "corp-standard-sso"
+              ]
+            },
+            "hardwareAllocations": {
+              "system": "Jira Service Management",
+              "package": "Engineering High-Performance Suite",
+              "totalAssetsProvisioned": 3,
+              "status": "ALL_REQUISITIONS_LOGGED"
+            },
+            "collaborationBroadcast": {
+              "channel": "#announcements",
+              "status": "WELCOME_CARD_PUBLISHED"
+            }
+          },
+          "orchestrationMetrics": {
+            "executionDurationMs": 418,
+            "timestamp": "2026-12-01T09:00:04.250Z",
+            "governanceAuditHash": "0x892af83b1657ff1fc53b92dc18148a1d65d"
+          }
+        }
+      }
+    ],
+    "Code_ExecuteSagaRollback": [
+      {
+        "json": {
+          "sagaRollbackStatus": "ALL_COMPENSATING_TRANSACTIONS_EXECUTED",
+          "orchestrationRecovered": true,
+          "failedNode": "HTTP_CreateAssetTicket",
+          "failureReason": "External Asset Requisition Gateway 503 Service Unavailable",
+          "compensatingAuditTrail": [
+            {
+              "step": 1,
+              "action": "Soft-delete HRIS Employee Record",
+              "targetSystem": "BambooHR",
+              "status": "COMPLETED",
+              "details": "Flagged record EMP-2026-8819 as DEACTIVATED_ONBOARDING_ABORTED"
+            },
+            {
+              "step": 2,
+              "action": "Deprovision Okta Identity & Revoke SSO Tokens",
+              "targetSystem": "Okta IdP",
+              "status": "COMPLETED",
+              "details": "Revoked user 00u8x92akL39Mqa771 and wiped active sessions"
+            },
+            {
+              "step": 3,
+              "action": "Cancel Open Hardware Procurement Requisitions",
+              "targetSystem": "Jira ITSD",
+              "status": "COMPLETED",
+              "details": "Marked linked procurement tickets as WITHDRAWN_COMPENSATING_ACTION"
+            },
+            {
+              "step": 4,
+              "action": "Alert SecOps & IT Operations Escalation Channel",
+              "targetSystem": "Slack #it-incident-bridge",
+              "status": "NOTIFIED",
+              "details": "High-priority alert broadcasted: Onboarding failed at [HTTP_CreateAssetTicket]: External Asset Requisition Gateway 503 Service Unavailable"
+            }
+          ],
+          "timestamp": "2026-12-01T09:05:00.000Z"
+        }
+      }
+    ]
+  }
+}

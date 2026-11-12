@@ -1,0 +1,21 @@
+# Dependencies & environment
+node_modules/
+.env
+.env.local
+*.log
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary scripts
+tmp/
+*.tmp
+build/
